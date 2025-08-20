@@ -1,0 +1,10 @@
+dify_plugin
+requests
+python-dotenv
+msal
+fastapi
+uvicorn[standard]
+pydantic
+pydantic[email]
+httpx
+python-multipart

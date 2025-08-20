@@ -1,0 +1,21 @@
+"""
+Configuration file for Outlook provider system credentials.
+"""
+import os
+from typing import Dict, Any
+
+# System credentials for Microsoft Graph API OAuth
+SYSTEM_CREDENTIALS: Dict[str, Any] = {
+    # Azure AD Application credentials
+    "client_id": os.getenv("AZURE_CLIENT_ID", "your-client-id-here"),
+    "client_secret": os.getenv("AZURE_CLIENT_SECRET", "your-client-secret-here"),
+    
+    # Optional: Tenant ID (defaults to "common" for multi-tenant)
+    "tenant_id": os.getenv("AZURE_TENANT_ID", "common"),
+    
+    # Optional: Custom scope (uses default if not specified)
+    # "scope": "Mail.Read Mail.Send Mail.ReadWrite offline_access"
+}
+
+# Redirect URI for OAuth flow
+REDIRECT_URI = os.getenv("REDIRECT_URI", "http://localhost:8000/oauth/callback")
