@@ -21,7 +21,7 @@ class DraftEmailTool(Tool):
             body_type = tool_parameters.get("body_type", "text")  # text or html
             importance = tool_parameters.get("importance", "normal")  # low, normal, high
             # Get access token from OAuth credentials
-            access_token = self.runtime.credentials.get("access_token")
+            access_token = tool_parameters.get("access_token", "")
 
             try:
                 # Create draft email

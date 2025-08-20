@@ -93,7 +93,7 @@ class EmailService:
         """Create a draft email."""
         try:
             from tools.draft_message import draft_email_tool
-            
+
             tool_parameters = {
                 "subject": request.subject,
                 "body": request.body,
@@ -103,10 +103,9 @@ class EmailService:
                 "importance": request.importance.value,
                 "access_token": access_token
             }
-            
+
             result = draft_email_tool.invoke(tool_parameters=tool_parameters)
-            
-            logger.info("Created draft email")
+
             return {
                 "result": result,
                 "created_at": datetime.utcnow().isoformat() + "Z"
