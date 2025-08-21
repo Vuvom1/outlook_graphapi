@@ -45,9 +45,9 @@ class ListEmailsResponse(BaseResponse):
 
 class SendEmailRequest(BaseModel):
     """Request model for sending emails."""
-    to: List[EmailStr] = Field(..., description="List of recipient email addresses")
-    cc: Optional[List[EmailStr]] = Field(None, description="List of CC recipient email addresses")
-    bcc: Optional[List[EmailStr]] = Field(None, description="List of BCC recipient email addresses")
+    to: str = Field(..., description="Comma-separated list of recipient email addresses")
+    cc: Optional[str] = Field(None, description="Comma-separated list of CC recipient email addresses")
+    bcc: Optional[str] = Field(None, description="Comma-separated list of BCC recipient email addresses")
     subject: str = Field(..., description="Subject of the email")
     body: str = Field(..., description="Content of the email message")
     body_type: BodyType = Field(BodyType.TEXT, description="Content type of the body")
@@ -135,9 +135,8 @@ class CreateDraftResponse(BaseResponse):
 
 class UpdateEmailResponse(BaseResponse):
     """Response model for update email operation."""
-    email_id: str
+    message: str
     updated_at: str
-    updated_fields: List[str]
 
 
 class AttachmentResponse(BaseResponse):

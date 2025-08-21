@@ -105,9 +105,26 @@ class EmailService:
             }
 
             result = draft_message_tool.invoke(tool_parameters=tool_parameters)
+            
+            # The invoke method returns a generator, so we need to consume it
+            messages = list(result)
+            
+            # Extract the actual result from the ToolInvokeMessage objects
+            if messages:
+                first_message = messages[0]
+                if hasattr(first_message, 'message'):
+                    # Extract the message content from ToolInvokeMessage
+                    if hasattr(first_message.message, 'text'):
+                        draft_result = first_message.message.text
+                    else:
+                        draft_result = str(first_message.message)
+                else:
+                    draft_result = str(first_message)
+            else:
+                draft_result = "No result returned"
 
             return {
-                "result": result,
+                "result": draft_result,
                 "created_at": datetime.utcnow().isoformat() + "Z"
             }
             
@@ -129,23 +146,29 @@ class EmailService:
             }
             
             result = update_message_tool.invoke(tool_parameters=tool_parameters)
-            
-            # Track updated fields
-            updated_fields = []
-            if request.subject is not None:
-                updated_fields.append("subject")
-            if request.body_content is not None:
-                updated_fields.append("body")
-            if request.importance is not None:
-                updated_fields.append("importance")
-            
-            logger.info(f"Updated email {email_id}")
+
+            # The invoke method returns a generator, so we need to consume it
+            messages = list(result)
+
+            # Extract the actual result from the ToolInvokeMessage objects
+            if messages:
+                first_message = messages[0]
+                if hasattr(first_message, 'message'):
+                    # Extract the message content from ToolInvokeMessage
+                    if hasattr(first_message.message, 'text'):
+                        result = first_message.message.text
+                    else:
+                        result = str(first_message.message)
+                else:
+                    result = str(first_message)
+            else:
+                result = "No result returned"
+
             return {
                 "result": result,
-                "updated_fields": updated_fields,
                 "updated_at": datetime.utcnow().isoformat() + "Z"
             }
-            
+
         except Exception as e:
             logger.error(f"Failed to update email {email_id}: {e}")
             raise

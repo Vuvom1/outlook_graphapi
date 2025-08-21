@@ -1,6 +1,7 @@
 from collections.abc import Generator
 from typing import Any, List, Dict
 import requests
+import json
 
 from dify_plugin import Tool
 from dify_plugin.entities.tool import ToolInvokeMessage
@@ -20,7 +21,8 @@ class DraftEmailTool(Tool):
             body_content = tool_parameters.get("body", "")
             body_type = tool_parameters.get("body_type", "text")  # text or html
             importance = tool_parameters.get("importance", "normal")  # low, normal, high
-            # Get access token from OAuth credentials
+
+            # Get access token from tool_parameters
             access_token = tool_parameters.get("access_token", "")
 
             try:
@@ -139,7 +141,7 @@ class DraftEmailTool(Tool):
         
         # Split by comma and clean up
         email_list = [email.strip() for email in recipients_str.split(",")]
-        
+
         for email in email_list:
             if not email:
                 continue
@@ -178,6 +180,6 @@ class DraftEmailTool(Tool):
         }
     
 draft_message_tool = DraftEmailTool(
-    runtime=None, 
-    session=None, 
+    runtime=None,
+    session=None
 )

@@ -129,7 +129,7 @@ async def create_draft_email(
         
         return CreateDraftResponse(
             message="Draft created successfully",
-            draft_id=result.get("draft_id", ""),
+            draft_id=result["result"],
             created_at=result["created_at"]
         )
         
@@ -151,10 +151,8 @@ async def update_email(
         result = await email_service.update_email(access_token, email_id, request)
         
         return UpdateEmailResponse(
-            message="Email updated successfully",
-            email_id=email_id,
+            message=result["result"],
             updated_at=result["updated_at"],
-            updated_fields=result["updated_fields"]
         )
         
     except Exception as e:
