@@ -2,7 +2,7 @@
 Email service for handling Microsoft Graph API operations.
 """
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, List, Optional
 from datetime import datetime
 
 from schemas.email_schemas import (
@@ -104,27 +104,15 @@ class EmailService:
                 "access_token": access_token
             }
 
-            result = draft_message_tool.invoke(tool_parameters=tool_parameters)
+            invoke = draft_message_tool.invoke(tool_parameters=tool_parameters)
             
             # The invoke method returns a generator, so we need to consume it
-            messages = list(result)
-            
-            # Extract the actual result from the ToolInvokeMessage objects
-            if messages:
-                first_message = messages[0]
-                if hasattr(first_message, 'message'):
-                    # Extract the message content from ToolInvokeMessage
-                    if hasattr(first_message.message, 'text'):
-                        draft_result = first_message.message.text
-                    else:
-                        draft_result = str(first_message.message)
-                else:
-                    draft_result = str(first_message)
-            else:
-                draft_result = "No result returned"
+            messages = list(invoke)
+
+            result = self._extract_result(messages)
 
             return {
-                "result": draft_result,
+                "result": result,
                 "created_at": datetime.utcnow().isoformat() + "Z"
             }
             
@@ -145,24 +133,12 @@ class EmailService:
                 "access_token": access_token
             }
             
-            result = update_message_tool.invoke(tool_parameters=tool_parameters)
+            invoke = update_message_tool.invoke(tool_parameters=tool_parameters)
 
             # The invoke method returns a generator, so we need to consume it
-            messages = list(result)
+            messages = list(invoke)
 
-            # Extract the actual result from the ToolInvokeMessage objects
-            if messages:
-                first_message = messages[0]
-                if hasattr(first_message, 'message'):
-                    # Extract the message content from ToolInvokeMessage
-                    if hasattr(first_message.message, 'text'):
-                        result = first_message.message.text
-                    else:
-                        result = str(first_message.message)
-                else:
-                    result = str(first_message)
-            else:
-                result = "No result returned"
+            result = self._extract_result(messages)
 
             return {
                 "result": result,
@@ -255,15 +231,36 @@ class EmailService:
             }
             
             result = delete_message_tool.invoke(tool_parameters=tool_parameters)
+
+            # The invoke method returns a generator, so we need to consume it
+            messages = list(result)
             
             logger.info(f"Deleted email with ID: {message_id}")
             return {
-                "result": result,
+                "result": messages,
                 "deleted_at": datetime.utcnow().isoformat() + "Z"
             }
             
         except Exception as e:
             logger.error(f"Failed to delete email {message_id}: {e}")
             raise
+
+    def _extract_result(self, messages: List[Any]) -> str:
+        """Extract the result from the list of messages."""
+        # Extract the actual result from the ToolInvokeMessage objects
+        if messages:
+            first_message = messages[0]
+            if hasattr(first_message, 'message'):
+                # Extract the message content from ToolInvokeMessage
+                if hasattr(first_message.message, 'text'):
+                    result = first_message.message.text
+                else:
+                    result = str(first_message.message)
+            else:
+                result = str(first_message)
+        else:
+            result = "No result returned"
+
+        return result
 
 email_service = EmailService()  
