@@ -82,47 +82,20 @@ class OutlookProvider(ToolProvider):
         self, redirect_uri: str, system_credentials: Mapping[str, Any], credentials: Mapping[str, Any]
     ) -> ToolOAuthCredentials:
         """Refresh OAuth credentials."""
-        tenant_id = system_credentials.get("tenant_id", "common")
-        token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
-
-        data = {
-            "client_id": system_credentials["client_id"],
-            "client_secret": system_credentials["client_secret"],
-            "refresh_token": credentials.get("refresh_token"),
-            "redirect_uri": redirect_uri,
-            "grant_type": "refresh_token",
-        }
-
-        # Encode the data for POST request
-        post_data = urllib.parse.urlencode(data).encode("utf-8")
-
-        # Create the request
-        req = urllib.request.Request(
-            token_url, data=post_data, headers={"Content-Type": "application/x-www-form-urlencoded"}
+        refreshed_credentials = self.client.acquire_token_by_refresh_token(
+            refresh_token=credentials.get("refresh_token"),
+            scopes=self._SCOPES,
         )
 
-        try:
-            with urllib.request.urlopen(req, timeout=30) as response:
-                if response.getcode() != 200:
-                    raise ToolProviderCredentialValidationError(f"Token refresh failed: HTTP {response.getcode()}")
-
-                response_data = response.read().decode("utf-8")
-                token_data = json.loads(response_data)
-        except urllib.error.HTTPError as e:
-            error_response = e.read().decode("utf-8") if hasattr(e, "read") else str(e)
-            raise ToolProviderCredentialValidationError(f"Token refresh failed: {error_response}")
-        except Exception as e:
-            raise ToolProviderCredentialValidationError(f"Network error during token refresh: {e}")
-
-        access_token = token_data.get("access_token")
-        refresh_token = token_data.get("refresh_token")
+        access_token = refreshed_credentials.get("access_token")
+        refresh_token = refreshed_credentials.get("refresh_token")
 
         if not access_token or not refresh_token:
             raise ToolProviderCredentialValidationError("No access token or refresh token in response")
 
         return ToolOAuthCredentials(
             credentials={"access_token": access_token, "refresh_token": refresh_token},
-            expires_at=token_data.get("expires_in", 3599) + int(time.time()),
+            expires_at=refreshed_credentials.get("expires_in", 3599) + int(time.time()),
         )
 
 

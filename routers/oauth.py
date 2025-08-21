@@ -80,7 +80,7 @@ async def get_credentials(code: str = Query(..., description="Authorization code
 
 
 @oauth_router.post("/refresh", summary="Refresh Access Token")
-async def refresh_token(refresh_token_data: dict[str, str]):
+async def refresh_token(refresh_token: str):
     """
     Refresh an expired access token using the refresh token.
 
@@ -90,7 +90,6 @@ async def refresh_token(refresh_token_data: dict[str, str]):
     }
     """
     try:
-        refresh_token = refresh_token_data.get("refresh_token")
         if not refresh_token:
             raise HTTPException(status_code=400, detail="Refresh token is required")
 
