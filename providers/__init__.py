@@ -1,1 +1,3 @@
-from .outlook import outlook_provider
+"""
+Outlook API provider for handling email operations.
+"""

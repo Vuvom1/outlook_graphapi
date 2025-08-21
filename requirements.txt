@@ -8,3 +8,4 @@ pydantic
 pydantic[email]
 httpx
 python-multipart
+ruff
