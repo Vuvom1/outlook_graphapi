@@ -177,7 +177,7 @@ class DraftEmailTool(Tool):
             "email": email_address.get("address", "Unknown")
         }
     
-draft_email_tool = DraftEmailTool(
+draft_message_tool = DraftEmailTool(
     runtime=None, 
     session=None, 
 )

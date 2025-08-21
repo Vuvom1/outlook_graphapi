@@ -1,6 +1,13 @@
 """
 Outlook Email Service API - Main FastAPI Application
 """
+# IMPORTANT: Suppress gevent monkey-patching warnings and patch early
+import warnings
+warnings.filterwarnings("ignore", message=".*Monkey-patching ssl.*", category=Warning)
+
+import gevent.monkey
+gevent.monkey.patch_all(ssl=False, subprocess=False)  # Patch selectively to avoid conflicts
+
 import os
 import logging
 from typing import Any

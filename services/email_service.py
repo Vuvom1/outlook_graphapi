@@ -92,7 +92,7 @@ class EmailService:
     async def create_draft(self, access_token: str, request: CreateDraftRequest) -> Dict[str, Any]:
         """Create a draft email."""
         try:
-            from tools.draft_message import draft_email_tool
+            from tools.draft_message import draft_message_tool
 
             tool_parameters = {
                 "subject": request.subject,
@@ -104,7 +104,7 @@ class EmailService:
                 "access_token": access_token
             }
 
-            result = draft_email_tool.invoke(tool_parameters=tool_parameters)
+            result = draft_message_tool.invoke(tool_parameters=tool_parameters)
 
             return {
                 "result": result,
