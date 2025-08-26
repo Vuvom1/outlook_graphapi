@@ -41,14 +41,15 @@ class OutlookProvider(ToolProvider):
         except Exception as e:
             raise ToolProviderCredentialValidationError(f"Network error during validation: {e}")
 
-    def _oauth_get_authorization_url(self, redirect_uri: str, system_credentials: Mapping[str, Any]) -> str:
+    def _oauth_get_authorization_url(self, redirect_uri: str) -> str:
         """Generate OAuth authorization URL."""
         # tenant_id = system_credentials.get("tenant_id", "common")
         # auth_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/authorize"
 
         authorization_url = self.client.get_authorization_request_url(
             scopes=self._SCOPES,
-            redirect_uri="https://cloud.dify.ai/console/api/oauth/plugin/langgenius/outlook/outlook/tool/callback",
+            # redirect_uri="https://cloud.dify.ai/console/api/oauth/plugin/langgenius/outlook/outlook/tool/callback",
+            redirect_uri=os.getenv("REDIRECT_URI", redirect_uri),
         )
         if not authorization_url:
             raise ToolProviderCredentialValidationError("Failed to generate authorization URL.")
@@ -56,7 +57,7 @@ class OutlookProvider(ToolProvider):
         return authorization_url
 
     def _oauth_get_credentials(
-        self, redirect_uri: str, system_credentials: Mapping[str, Any], code: str
+        self, redirect_uri: str, code: str
     ) -> ToolOAuthCredentials:
         """Exchange authorization code for access token."""
 
@@ -79,7 +80,7 @@ class OutlookProvider(ToolProvider):
         )
 
     def oauth_refresh_credentials(
-        self, redirect_uri: str, system_credentials: Mapping[str, Any], credentials: Mapping[str, Any]
+        self, credentials: Mapping[str, Any]
     ) -> ToolOAuthCredentials:
         """Refresh OAuth credentials."""
         refreshed_credentials = self.client.acquire_token_by_refresh_token(
