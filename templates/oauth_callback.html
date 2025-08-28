@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block title %}OAuth Callback - Processing Authorization{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body text-center p-5">
+                <!-- Loading State -->
+                <div id="loading-state">
+                    <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <h4>Processing Authorization...</h4>
+                    <p class="text-muted">Please wait while we exchange your authorization code for access credentials.</p>
+                </div>
+
+                <!-- Success State -->
+                <div id="success-state" class="d-none">
+                    <i class="fas fa-check-circle fa-5x text-success mb-3"></i>
+                    <h4 class="text-success">Authorization Successful!</h4>
+                    <p class="text-muted">Your credentials have been obtained successfully. You will be redirected to the client portal.</p>
+                    <div class="mt-3">
+                        <a href="/client" class="btn btn-success">Continue to Portal</a>
+                    </div>
+                </div>
+
+                <!-- Error State -->
+                <div id="error-state" class="d-none">
+                    <i class="fas fa-exclamation-circle fa-5x text-danger mb-3"></i>
+                    <h4 class="text-danger">Authorization Failed</h4>
+                    <p class="text-muted mb-3">We encountered an error while processing your authorization:</p>
+                    <div class="alert alert-danger" role="alert">
+                        <span id="error-message">Unknown error occurred</span>
+                    </div>
+                    <div class="mt-3">
+                        <a href="/client" class="btn btn-primary">Try Again</a>
+                        <a href="/docs" class="btn btn-outline-secondary ms-2" target="_blank">API Documentation</a>
+                    </div>
+                </div>
+
+                <!-- No Code Error -->
+                <div id="no-code-state" class="d-none">
+                    <i class="fas fa-times-circle fa-5x text-warning mb-3"></i>
+                    <h4 class="text-warning">Missing Authorization Code</h4>
+                    <p class="text-muted">No authorization code was provided in the callback URL. This usually means:</p>
+                    <ul class="list-unstyled text-start mt-3">
+                        <li class="mb-2"><i class="fas fa-exclamation-triangle text-warning me-2"></i>The OAuth flow was not completed properly</li>
+                        <li class="mb-2"><i class="fas fa-exclamation-triangle text-warning me-2"></i>The user denied permissions</li>
+                        <li class="mb-2"><i class="fas fa-exclamation-triangle text-warning me-2"></i>There was a network error during the redirect</li>
+                    </ul>
+                    <div class="mt-4">
+                        <a href="/client" class="btn btn-primary">Start Over</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Debug Information (only shown in development) -->
+        <div class="card mt-3" id="debug-info" style="display: none;">
+            <div class="card-header">
+                <h6><i class="fas fa-bug me-2"></i>Debug Information</h6>
+            </div>
+            <div class="card-body">
+                <small class="text-muted">
+                    <strong>URL Parameters:</strong><br>
+                    <span id="debug-params"></span>
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', async function() {
+    // Get URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    const error = urlParams.get('error');
+    const errorDescription = urlParams.get('error_description');
+    const state = urlParams.get('state');
+
+    // Show debug info in development
+    const debugInfo = document.getElementById('debug-info');
+    const debugParams = document.getElementById('debug-params');
+    debugParams.textContent = window.location.search || '(no parameters)';
+    
+    // Show debug info if there are URL parameters (for development)
+    if (window.location.search) {
+        debugInfo.style.display = 'block';
+    }
+
+    // Handle OAuth error responses
+    if (error) {
+        showErrorState(`OAuth Error: ${error}${errorDescription ? ' - ' + errorDescription : ''}`);
+        return;
+    }
+
+    // Handle missing authorization code
+    if (!code) {
+        showNoCodeState();
+        return;
+    }
+
+    try {
+        // Exchange the authorization code for credentials
+        const exchangeUrl = `/oauth/get_credentials?code=${encodeURIComponent(code)}${state ? '&state=' + encodeURIComponent(state) : ''}`;
+        console.log('Exchanging code via:', exchangeUrl);
+        
+        const response = await fetch(exchangeUrl, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        console.log('Exchange response:', data);
+
+        if (response.ok && data.access_token) {
+            // Success! Show success state
+            showSuccessState();
+            
+            // Store the session token if provided (for client portal integration)
+            if (data.session_token) {
+                document.cookie = `session_token=${data.session_token}; path=/; max-age=${24*3600}; SameSite=Lax`;
+                console.log('Session token stored:', data.session_token);
+            }
+            
+            // Redirect to client portal after 2 seconds
+            setTimeout(() => {
+                window.location.href = '/client?authenticated=true';
+            }, 2000);
+        } else {
+            // Handle API errors
+            const errorMsg = data.detail || data.message || data.error || 'Unknown error occurred during credential exchange';
+            console.error('Credential exchange failed:', data);
+            showErrorState(errorMsg);
+        }
+    } catch (error) {
+        console.error('Error exchanging authorization code:', error);
+        showErrorState('Network error occurred while processing authorization code');
+    }
+});
+
+function showSuccessState() {
+    document.getElementById('loading-state').classList.add('d-none');
+    document.getElementById('success-state').classList.remove('d-none');
+    document.getElementById('error-state').classList.add('d-none');
+    document.getElementById('no-code-state').classList.add('d-none');
+}
+
+function showErrorState(message) {
+    document.getElementById('loading-state').classList.add('d-none');
+    document.getElementById('success-state').classList.add('d-none');
+    document.getElementById('error-state').classList.remove('d-none');
+    document.getElementById('no-code-state').classList.add('d-none');
+    document.getElementById('error-message').textContent = message;
+}
+
+function showNoCodeState() {
+    document.getElementById('loading-state').classList.add('d-none');
+    document.getElementById('success-state').classList.add('d-none');
+    document.getElementById('error-state').classList.add('d-none');
+    document.getElementById('no-code-state').classList.remove('d-none');
+}
+</script>
+{% endblock %}

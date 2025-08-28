@@ -9,3 +9,8 @@ pydantic[email]
 httpx
 python-multipart
 ruff
+jinja2
+python-multipart
+# PostgreSQL dependencies
+psycopg2-binary
+asyncpg

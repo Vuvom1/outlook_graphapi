@@ -22,10 +22,12 @@ load_dotenv()
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from config import REDIRECT_URI, SYSTEM_CREDENTIALS
 from routers.email import email_router
 from routers.oauth import oauth_router
+from routers.client import client_router
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -52,6 +54,7 @@ app.add_middleware(
 # Include routers
 app.include_router(oauth_router, tags=["OAuth Authentication"])
 app.include_router(email_router, tags=["Email Operations"])
+app.include_router(client_router, tags=["Client Portal"])
 
 
 @app.get("/", summary="Health Check")
@@ -62,7 +65,7 @@ async def root():
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat() + "Z",
         "version": "1.0.0",
-        "endpoints": {"docs": "/docs", "redoc": "/redoc", "oauth": "/oauth", "emails": "/emails"},
+        "endpoints": {"docs": "/docs", "redoc": "/redoc", "oauth": "/oauth", "emails": "/emails", "client": "/client"},
     }
 
 
@@ -106,6 +109,7 @@ def main():
     logger.info("Available endpoints:")
     logger.info("- Health Check: http://localhost:8000/")
     logger.info("- API Documentation: http://localhost:8000/docs")
+    logger.info("- Client Portal: http://localhost:8000/client")
     logger.info("- OAuth Authorization: http://localhost:8000/oauth/authorize")
     logger.info("- Email Operations: http://localhost:8000/emails")
 

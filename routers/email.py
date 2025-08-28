@@ -6,7 +6,7 @@ Provides endpoints for reading, sending, and managing emails through Microsoft G
 import logging
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 
 from schemas.common_schemas import BaseResponse
 from schemas.email_schemas import (
@@ -23,6 +23,7 @@ from schemas.email_schemas import (
     UpdateEmailResponse,
 )
 from services.email_service import EmailService
+from auth.dependencies import require_oauth_token
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -48,12 +49,13 @@ async def get_access_token(authorization: str = Header(..., alias="Authorization
 
 @email_router.get("/list", summary="List Emails")
 async def list_emails(
+    request: Request,
     limit: int = Query(10, ge=1, le=100, description="Number of emails to retrieve (1-100)"),
     offset: int = Query(0, ge=0, description="Number of emails to skip"),
     folder: str = Query("inbox", description="Email folder to read from"),
     search: str | None = Query(None, description="Search query for filtering emails"),
     include_body: bool = Query(False, description="Whether to include email body in the response"),
-    access_token: str = Depends(get_access_token),
+    access_token: str = Depends(require_oauth_token),
 ) -> ListEmailsResponse:
     """
     List emails from Outlook using Microsoft Graph API.

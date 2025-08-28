@@ -1,12 +1,15 @@
 """
-Authentication service for handling OAuth operations.
+Authentication service for handling OAuth operations and credential storage.
 """
 
 import logging
-from typing import Any
+from typing import Any, Dict
+import httpx
+from datetime import datetime
 
 from config import REDIRECT_URI, SYSTEM_CREDENTIALS
 from providers.outlook import OutlookProvider
+from models.database import credentials_db
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +24,7 @@ class AuthService:
         """Generate OAuth authorization URL."""
         try:
             auth_url = self.outlook_provider._oauth_get_authorization_url(
-                redirect_uri=REDIRECT_URI, system_credentials=SYSTEM_CREDENTIALS
+                redirect_uri=REDIRECT_URI
             )
 
             logger.info("Generated OAuth authorization URL")
@@ -31,26 +34,59 @@ class AuthService:
             logger.error(f"Failed to generate authorization URL: {e}")
             raise
 
-    async def exchange_code_for_tokens(self, code: str, state: str) -> dict[str, Any]:
-        """Exchange authorization code for access tokens."""
+    async def exchange_code_for_tokens(self, code: str, state: str = None) -> Dict[str, Any]:
+        """Exchange authorization code for access tokens and save to database."""
         try:
-            request_data = {"args": {"code": code, "state": state}}
-
+            # Exchange code for tokens using the OAuth provider
             oauth_credentials = self.outlook_provider._oauth_get_credentials(
-                redirect_uri=REDIRECT_URI, system_credentials=SYSTEM_CREDENTIALS, request=request_data
+                redirect_uri=REDIRECT_URI, code=code
             )
-
-            logger.info("Successfully exchanged authorization code for access token")
-            return {
+            
+            tokens = {
                 "access_token": oauth_credentials.credentials.get("access_token"),
                 "refresh_token": oauth_credentials.credentials.get("refresh_token"),
-                "expires_at": oauth_credentials.expires_at,
+                "expires_in": oauth_credentials.credentials.get("expires_in", 3600),
                 "token_type": "Bearer",
+            }
+            
+            # Get user information from Microsoft Graph API
+            user_info = await self.get_user_info(tokens["access_token"])
+            
+            # Save credentials to database
+            user_id = credentials_db.save_user_credentials(user_info, tokens)
+            
+            # Create a session token
+            session_token = credentials_db.create_session(user_id)
+            
+            logger.info(f"Successfully saved credentials for user: {user_info.get('mail', 'unknown')}")
+            
+            return {
+                "user_id": user_id,
+                "session_token": session_token,
+                "user_info": user_info,
+                **tokens
             }
 
         except Exception as e:
             logger.error(f"OAuth callback failed: {e}")
             raise
+
+    async def get_user_info(self, access_token: str) -> Dict[str, Any]:
+        """Get user information from Microsoft Graph API."""
+        try:
+            async with httpx.AsyncClient() as client:
+                headers = {"Authorization": f"Bearer {access_token}"}
+                response = await client.get("https://graph.microsoft.com/v1.0/me", headers=headers)
+                
+                if response.status_code == 200:
+                    return response.json()
+                else:
+                    logger.error(f"Failed to get user info: {response.status_code} {response.text}")
+                    return {"mail": "unknown@example.com", "displayName": "Unknown User"}
+                    
+        except Exception as e:
+            logger.error(f"Error getting user info: {e}")
+            return {"mail": "unknown@example.com", "displayName": "Unknown User"}
 
     async def refresh_access_token(self, refresh_token: str) -> dict[str, Any]:
         """Refresh an expired access token."""
@@ -58,7 +94,7 @@ class AuthService:
             credentials = {"refresh_token": refresh_token}
 
             new_credentials = self.outlook_provider.oauth_refresh_credentials(
-                redirect_uri=REDIRECT_URI, system_credentials=SYSTEM_CREDENTIALS, credentials=credentials
+                redirect_uri=REDIRECT_URI, credentials=credentials
             )
 
             logger.info("Successfully refreshed access token")

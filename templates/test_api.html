@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+
+{% block title %}API Test - Outlook Email Service{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card">
+            <div class="card-header">
+                <h4><i class="fas fa-flask me-2"></i>API Testing Console</h4>
+                <p class="mb-0">Test your API connection and explore available endpoints</p>
+            </div>
+            <div class="card-body">
+                <!-- API Test Results -->
+                <div id="test-results">
+                    {% if test_result %}
+                    <div class="alert alert-{{ 'success' if test_result.success else 'danger' }} mb-4">
+                        <h6><i class="fas fa-{{ 'check-circle' if test_result.success else 'exclamation-circle' }} me-2"></i>
+                            API Test {{ 'Successful' if test_result.success else 'Failed' }}
+                        </h6>
+                        <p class="mb-0">{{ test_result.message }}</p>
+                        {% if test_result.data %}
+                        <hr>
+                        <pre class="mb-0"><code>{{ test_result.data }}</code></pre>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Quick Tests -->
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <i class="fas fa-user fa-2x text-primary mb-3"></i>
+                                <h6>Profile Test</h6>
+                                <p class="text-muted">Get your user profile</p>
+                                <button class="btn btn-outline-primary btn-sm" onclick="testEndpoint('/emails/me')">
+                                    Test Now
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <i class="fas fa-envelope fa-2x text-success mb-3"></i>
+                                <h6>List Emails</h6>
+                                <p class="text-muted">Fetch recent emails</p>
+                                <button class="btn btn-outline-success btn-sm" onclick="testEndpoint('/emails/list?limit=5')">
+                                    Test Now
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <i class="fas fa-folder fa-2x text-info mb-3"></i>
+                                <h6>List Folders</h6>
+                                <p class="text-muted">Get mail folders</p>
+                                <button class="btn btn-outline-info btn-sm" onclick="testEndpoint('/emails/folders/list')">
+                                    Test Now
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Custom API Test -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h6><i class="fas fa-code me-2"></i>Custom API Test</h6>
+                    </div>
+                    <div class="card-body">
+                        <form id="api-test-form">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <select class="form-select" id="method">
+                                        <option value="GET">GET</option>
+                                        <option value="POST">POST</option>
+                                        <option value="PATCH">PATCH</option>
+                                        <option value="DELETE">DELETE</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <input type="text" class="form-control" id="endpoint" placeholder="/emails/list" value="/emails/list">
+                                </div>
+                                <div class="col-md-3">
+                                    <button type="submit" class="btn btn-primary w-100">
+                                        <i class="fas fa-play me-1"></i>Test
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <textarea class="form-control" id="request-body" rows="3" placeholder='{"to": ["test@example.com"], "subject": "Test", "body": "Hello!"}'></textarea>
+                                    <small class="text-muted">Request body (for POST/PATCH requests)</small>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Response Area -->
+                <div class="card mt-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i class="fas fa-terminal me-2"></i>Response</h6>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="clearResponse()">Clear</button>
+                    </div>
+                    <div class="card-body">
+                        <div id="response-area">
+                            <p class="text-muted text-center py-4">
+                                <i class="fas fa-play-circle fa-2x mb-2"></i><br>
+                                Run a test to see the API response here
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Back Button -->
+                <div class="mt-4 text-center">
+                    <a href="/client" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Client Portal
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Modal -->
+<div class="modal fade" id="loadingModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-body text-center py-4">
+                <div class="spinner-border text-primary mb-3" role="status"></div>
+                <p>Testing API endpoint...</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const BASE_URL = '{{ base_url }}';
+const ACCESS_TOKEN = '{{ access_token }}';
+
+async function testEndpoint(endpoint, method = 'GET', body = null) {
+    const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+    loadingModal.show();
+    
+    try {
+        const options = {
+            method: method,
+            headers: {
+                'Authorization': `Bearer ${ACCESS_TOKEN}`,
+                'Content-Type': 'application/json'
+            }
+        };
+        
+        if (body && (method === 'POST' || method === 'PATCH')) {
+            options.body = JSON.stringify(body);
+        }
+        
+        const response = await fetch(`${BASE_URL}${endpoint}`, options);
+        const data = await response.json();
+        
+        displayResponse({
+            status: response.status,
+            statusText: response.statusText,
+            data: data,
+            success: response.ok,
+            endpoint: endpoint,
+            method: method
+        });
+        
+    } catch (error) {
+        displayResponse({
+            status: 0,
+            statusText: 'Network Error',
+            data: { error: error.message },
+            success: false,
+            endpoint: endpoint,
+            method: method
+        });
+    } finally {
+        loadingModal.hide();
+    }
+}
+
+function displayResponse(result) {
+    const responseArea = document.getElementById('response-area');
+    const statusColor = result.success ? 'success' : 'danger';
+    const statusIcon = result.success ? 'check-circle' : 'exclamation-circle';
+    
+    responseArea.innerHTML = `
+        <div class="alert alert-${statusColor} mb-3">
+            <h6><i class="fas fa-${statusIcon} me-2"></i>${result.method} ${result.endpoint}</h6>
+            <p class="mb-0">Status: ${result.status} ${result.statusText}</p>
+        </div>
+        <pre class="bg-light p-3 rounded"><code>${JSON.stringify(result.data, null, 2)}</code></pre>
+    `;
+}
+
+function clearResponse() {
+    document.getElementById('response-area').innerHTML = `
+        <p class="text-muted text-center py-4">
+            <i class="fas fa-play-circle fa-2x mb-2"></i><br>
+            Run a test to see the API response here
+        </p>
+    `;
+}
+
+// Handle custom form submission
+document.getElementById('api-test-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const method = document.getElementById('method').value;
+    const endpoint = document.getElementById('endpoint').value;
+    const bodyText = document.getElementById('request-body').value.trim();
+    
+    let body = null;
+    if (bodyText && (method === 'POST' || method === 'PATCH')) {
+        try {
+            body = JSON.parse(bodyText);
+        } catch (error) {
+            alert('Invalid JSON in request body');
+            return;
+        }
+    }
+    
+    await testEndpoint(endpoint, method, body);
+});
+</script>
+{% endblock %}

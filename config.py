@@ -16,5 +16,5 @@ SYSTEM_CREDENTIALS: dict[str, Any] = {
     # "scope": "Mail.Read Mail.Send Mail.ReadWrite offline_access"
 }
 
-# Redirect URI for OAuth flow
-REDIRECT_URI = os.getenv("REDIRECT_URI", "http://localhost:8000/oauth/callback")
+# Redirect URI for OAuth flow (automatically detects HTTPS/HTTP)
+REDIRECT_URI = os.getenv("REDIRECT_URI", "https://localhost:8000/client/callback")
