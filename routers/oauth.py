@@ -4,14 +4,14 @@ Handles OAuth flow for Microsoft Graph API access.
 """
 
 import logging
-import httpx
 
+import httpx
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
 
-from config import REDIRECT_URI, SYSTEM_CREDENTIALS
-from providers.outlook import OutlookProvider
+from config import REDIRECT_URI
 from models.database import credentials_db
+from providers.outlook import OutlookProvider
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -73,10 +73,8 @@ async def get_credentials(code: str = Query(..., description="Authorization code
 
         # Get user information from Microsoft Graph API
         user_info = await get_user_info(tokens["access_token"])
-        
         # Save credentials to database
         user_id = credentials_db.save_user_credentials(user_info, tokens)
-        
         # Create a session token for web interface integration
         session_token = credentials_db.create_session(user_id)
 
@@ -106,13 +104,11 @@ async def get_user_info(access_token: str) -> dict:
         async with httpx.AsyncClient() as client:
             headers = {"Authorization": f"Bearer {access_token}"}
             response = await client.get("https://graph.microsoft.com/v1.0/me", headers=headers)
-            
             if response.status_code == 200:
                 return response.json()
             else:
                 logger.error(f"Failed to get user info: {response.status_code} {response.text}")
                 return {"mail": "unknown@example.com", "displayName": "Unknown User"}
-                
     except Exception as e:
         logger.error(f"Error getting user info: {e}")
         return {"mail": "unknown@example.com", "displayName": "Unknown User"}

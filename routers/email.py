@@ -8,6 +8,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 
+from auth.dependencies import require_oauth_token
 from schemas.common_schemas import BaseResponse
 from schemas.email_schemas import (
     AttachmentRequest,
@@ -23,7 +24,6 @@ from schemas.email_schemas import (
     UpdateEmailResponse,
 )
 from services.email_service import EmailService
-from auth.dependencies import require_oauth_token
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

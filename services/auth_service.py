@@ -3,13 +3,13 @@ Authentication service for handling OAuth operations and credential storage.
 """
 
 import logging
-from typing import Any, Dict
-import httpx
-from datetime import datetime
+from typing import Any
 
-from config import REDIRECT_URI, SYSTEM_CREDENTIALS
-from providers.outlook import OutlookProvider
+import httpx
+
+from config import REDIRECT_URI
 from models.database import credentials_db
+from providers.outlook import OutlookProvider
 
 logger = logging.getLogger(__name__)
 
@@ -34,32 +34,26 @@ class AuthService:
             logger.error(f"Failed to generate authorization URL: {e}")
             raise
 
-    async def exchange_code_for_tokens(self, code: str, state: str = None) -> Dict[str, Any]:
+    async def exchange_code_for_tokens(self, code: str, state: str = None) -> dict[str, Any]:
         """Exchange authorization code for access tokens and save to database."""
         try:
             # Exchange code for tokens using the OAuth provider
             oauth_credentials = self.outlook_provider._oauth_get_credentials(
                 redirect_uri=REDIRECT_URI, code=code
             )
-            
             tokens = {
                 "access_token": oauth_credentials.credentials.get("access_token"),
                 "refresh_token": oauth_credentials.credentials.get("refresh_token"),
                 "expires_in": oauth_credentials.credentials.get("expires_in", 3600),
                 "token_type": "Bearer",
             }
-            
             # Get user information from Microsoft Graph API
             user_info = await self.get_user_info(tokens["access_token"])
-            
             # Save credentials to database
             user_id = credentials_db.save_user_credentials(user_info, tokens)
-            
             # Create a session token
             session_token = credentials_db.create_session(user_id)
-            
             logger.info(f"Successfully saved credentials for user: {user_info.get('mail', 'unknown')}")
-            
             return {
                 "user_id": user_id,
                 "session_token": session_token,
@@ -71,19 +65,17 @@ class AuthService:
             logger.error(f"OAuth callback failed: {e}")
             raise
 
-    async def get_user_info(self, access_token: str) -> Dict[str, Any]:
+    async def get_user_info(self, access_token: str) -> dict[str, Any]:
         """Get user information from Microsoft Graph API."""
         try:
             async with httpx.AsyncClient() as client:
                 headers = {"Authorization": f"Bearer {access_token}"}
                 response = await client.get("https://graph.microsoft.com/v1.0/me", headers=headers)
-                
                 if response.status_code == 200:
                     return response.json()
                 else:
                     logger.error(f"Failed to get user info: {response.status_code} {response.text}")
                     return {"mail": "unknown@example.com", "displayName": "Unknown User"}
-                    
         except Exception as e:
             logger.error(f"Error getting user info: {e}")
             return {"mail": "unknown@example.com", "displayName": "Unknown User"}

@@ -2,19 +2,17 @@
 Client portal router for server-side rendering of OAuth authentication UI.
 Provides a web interface for users to authenticate and get credentials.
 """
-from datetime import datetime, timedelta
-from typing import Optional
+from datetime import datetime
 
 import httpx
-from fastapi import APIRouter, HTTPException, Request, Form, Depends
+from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from config import REDIRECT_URI, SYSTEM_CREDENTIALS
+from auth.dependencies import get_current_user_simple
+from models.database import credentials_db
 from providers.outlook import outlook_provider
 from services.auth_service import AuthService
-from models.database import credentials_db
-from auth.dependencies import get_current_user_simple, get_access_token_simple
 
 # Initialize router, templates, and services
 client_router = APIRouter(prefix="/client", tags=["Client Portal"])
@@ -39,7 +37,7 @@ async def client_portal(request: Request):
         access_token = None
         user_info = {}
         token_expires = None
-        
+
         if authenticated:
             access_token = user.get("access_token")
             user_info = {
@@ -50,16 +48,14 @@ async def client_portal(request: Request):
             if user.get("token_expires_at"):
                 expires_at = datetime.fromisoformat(user["token_expires_at"])
                 token_expires = expires_at.strftime("%Y-%m-%d %H:%M:%S")
-        
         # Get authorization URL for non-authenticated users
         auth_url = None
         if not authenticated:
             try:
                 # Use the OAuth endpoint from our API
-                auth_url = f"/oauth/get_authorization_url"
-            except Exception as e:
-                auth_url = f"/oauth/get_authorization_url"  # Fallback to API endpoint
-        
+                auth_url = "/oauth/get_authorization_url"
+            except Exception:
+                auth_url = "/oauth/get_authorization_url"  # Fallback to API endpoint
         return templates.TemplateResponse("client_portal.html", {
             "request": request,
             "authenticated": authenticated,
@@ -69,7 +65,6 @@ async def client_portal(request: Request):
             "token_expires": token_expires,
             "base_url": get_base_url(request)
         })
-        
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error loading client portal: {str(e)}")
 
@@ -84,23 +79,19 @@ async def get_auth_url(request: Request):
         from config import SYSTEM_CREDENTIALS
         if not SYSTEM_CREDENTIALS.get("client_id") or SYSTEM_CREDENTIALS.get("client_id") == "your-client-id-here":
             return {
-                "success": False, 
+                "success": False,
                 "error": "Azure credentials not configured. Please set AZURE_CLIENT_ID and AZURE_CLIENT_SECRET environment variables.",
                 "fallback_url": "/oauth/get_authorization_url"
             }
-        
         base_url = get_base_url(request)
         redirect_uri = f"{base_url}/client/callback"
-        
         # Use the outlook provider's OAuth method
         auth_url = outlook_provider._oauth_get_authorization_url(redirect_uri)
-        
         return {"success": True, "auth_url": auth_url}
     except Exception as e:
         error_msg = str(e)
         if "client_id" in error_msg.lower() or "client_secret" in error_msg.lower():
             error_msg = "Azure credentials not properly configured. Please check your environment variables."
-        
         return {"success": False, "error": error_msg, "fallback_url": "/oauth/get_authorization_url"}
 
 
@@ -124,19 +115,16 @@ async def client_oauth_callback_handler(request: Request, code: str, state: str 
     try:
         # Exchange code for tokens and save to database
         result = await auth_service.exchange_code_for_tokens(code, state)
-        
         # Create response with session token cookie
         response = RedirectResponse(url="/client", status_code=302)
         response.set_cookie(
-            "session_token", 
-            result["session_token"], 
+            "session_token",
+            result["session_token"],
             max_age=24*3600,  # 24 hours
-            httponly=True, 
+            httponly=True,
             secure=False  # Set to True in production with HTTPS
         )
-        
         return response
-        
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"OAuth callback error: {str(e)}")
 
@@ -150,7 +138,6 @@ async def test_api_page(request: Request):
     if not user:
         # Redirect to login if not authenticated
         return RedirectResponse(url="/client", status_code=302)
-    
     return templates.TemplateResponse("test_api.html", {
         "request": request,
         "access_token": user["access_token"],
@@ -170,11 +157,9 @@ async def test_endpoint(request: Request, endpoint: str = Form(...), method: str
     user = get_current_user_simple(request)
     if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
-    
     try:
         base_url = get_base_url(request)
         headers = {"Authorization": f"Bearer {user['access_token']}"}
-        
         async with httpx.AsyncClient() as client:
             if method.upper() == "GET":
                 response = await client.get(f"{base_url}{endpoint}", headers=headers)
@@ -186,14 +171,12 @@ async def test_endpoint(request: Request, endpoint: str = Form(...), method: str
                 response = await client.delete(f"{base_url}{endpoint}", headers=headers)
             else:
                 raise HTTPException(status_code=400, detail="Unsupported HTTP method")
-        
         return {
             "success": response.status_code < 400,
             "status_code": response.status_code,
             "data": response.json() if response.content else {},
             "message": f"{method.upper()} {endpoint} - Status: {response.status_code}"
         }
-        
     except Exception as e:
         return {
             "success": False,
@@ -211,7 +194,6 @@ async def logout(request: Request):
     session_token = request.cookies.get("session_token")
     if session_token:
         credentials_db.invalidate_session(session_token)
-    
     response = RedirectResponse(url="/client", status_code=302)
     response.delete_cookie("session_token")
     return response
@@ -225,11 +207,9 @@ async def get_status(request: Request):
     user = get_current_user_simple(request)
     if not user:
         return {"authenticated": False, "message": "No active session"}
-    
     # Check token expiration
     token_expires_at = datetime.fromisoformat(user["token_expires_at"])
     token_valid = token_expires_at > datetime.utcnow()
-    
     return {
         "authenticated": token_valid,
         "user_info": {
@@ -249,7 +229,6 @@ async def simple_oauth_test(request: Request):
     user = get_current_user_simple(request)
     if not user:
         return {"authenticated": False, "message": "Please authenticate first"}
-    
     return {
         "authenticated": True,
         "access_token": user.get('access_token', 'N/A'),
