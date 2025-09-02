@@ -9,7 +9,7 @@ from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from auth.dependencies import get_current_user_simple
+from auth.dependencies import get_current_user
 from models.database import credentials_db
 from providers.outlook import outlook_provider
 from services.auth_service import AuthService
@@ -32,7 +32,7 @@ async def client_portal(request: Request):
     Main client portal page for OAuth authentication.
     """
     try:
-        user = get_current_user_simple(request)
+        user = get_current_user(request)
         authenticated = user is not None
         access_token = None
         user_info = {}
@@ -134,7 +134,7 @@ async def test_api_page(request: Request):
     """
     API testing console page.
     """
-    user = get_current_user_simple(request)
+    user = get_current_user(request)
     if not user:
         # Redirect to login if not authenticated
         return RedirectResponse(url="/client", status_code=302)
@@ -154,7 +154,7 @@ async def test_endpoint(request: Request, endpoint: str = Form(...), method: str
     """
     Test an API endpoint and return results.
     """
-    user = get_current_user_simple(request)
+    user = get_current_user(request)
     if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
     try:
@@ -204,7 +204,7 @@ async def get_status(request: Request):
     """
     Get current authentication status (API endpoint).
     """
-    user = get_current_user_simple(request)
+    user = get_current_user(request)
     if not user:
         return {"authenticated": False, "message": "No active session"}
     # Check token expiration
@@ -226,7 +226,7 @@ async def simple_oauth_test(request: Request):
     """
     Simple endpoint to test OAuth functionality.
     """
-    user = get_current_user_simple(request)
+    user = get_current_user(request)
     if not user:
         return {"authenticated": False, "message": "Please authenticate first"}
     return {

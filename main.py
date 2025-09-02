@@ -22,12 +22,11 @@ load_dotenv()
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
 
 from config import REDIRECT_URI, SYSTEM_CREDENTIALS
+from routers.client import client_router
 from routers.email import email_router
 from routers.oauth import oauth_router
-from routers.client import client_router
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

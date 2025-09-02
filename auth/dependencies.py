@@ -2,7 +2,6 @@
 Simplified authentication for OAuth testing.
 """
 
-import asyncio
 import logging
 from datetime import datetime, timedelta
 
@@ -25,9 +24,9 @@ def get_access_token_simple(request: Request) -> str | None:
     return None
 
 
-def require_oauth_token(request: Request) -> str:
+async def require_oauth_token(request: Request) -> str:
     """Require OAuth access token for API calls."""
-    access_token = get_access_token_with_refresh(request)
+    access_token = await get_access_token_with_refresh(request)
     if not access_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -43,7 +42,7 @@ def get_current_user(request: Request) -> dict | None:
     user_data = credentials_db.validate_session(session_token)
     return user_data
 
-def get_access_token_with_refresh(request: Request) -> str | None:
+async def get_access_token_with_refresh(request: Request) -> str | None:
     """
     Get access token for the current user, refresh if expired or near expiry.
     """
@@ -67,13 +66,7 @@ def get_access_token_with_refresh(request: Request) -> str | None:
         # Token expired or about to expire, refresh
         auth_service = AuthService()
         try:
-            # If already in an event loop, use create_task, else run
-            try:
-                loop = asyncio.get_running_loop()
-                coro = auth_service.refresh_access_token(refresh_token)
-                new_tokens = loop.run_until_complete(coro)
-            except RuntimeError:
-                new_tokens = asyncio.run(auth_service.refresh_access_token(refresh_token))
+            new_tokens = await auth_service.refresh_access_token(refresh_token)
             credentials_db.update_tokens(
                 user_id=user_id,
                 access_token=new_tokens["access_token"],

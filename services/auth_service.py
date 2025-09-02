@@ -86,7 +86,7 @@ class AuthService:
             credentials = {"refresh_token": refresh_token}
 
             new_credentials = self.outlook_provider.oauth_refresh_credentials(
-                redirect_uri=REDIRECT_URI, credentials=credentials
+                credentials=credentials
             )
 
             logger.info("Successfully refreshed access token")

@@ -42,7 +42,11 @@ class EmailService:
             }
 
             # Call the existing tool
-            result = list_message_tool.invoke(tool_parameters=tool_parameters)
+            invoke = list_message_tool.invoke(tool_parameters=tool_parameters)
+
+            emails = list(invoke)
+
+            result = self._extract_messages(emails)
 
             logger.info(f"Listed emails from folder: {folder}")
 
@@ -249,6 +253,17 @@ class EmailService:
             result = "No result returned"
 
         return result
+
+    def _extract_messages(self, messages: list[Any]) -> list[Any]:
+        """Extract the messages from the list of messages."""
+        # Extract the actual messages from the list of ToolInvokeMessage objects
+        extracted_messages = []
+        for msg in messages:
+            if hasattr(msg, "message"):
+                extracted_messages.append(msg.message)
+            else:
+                extracted_messages.append(msg)
+        return extracted_messages
 
 
 email_service = EmailService()
